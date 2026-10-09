@@ -1,0 +1,2 @@
+:HL["/TraceDora/_next/static/chunks/2n2qo-j_ynej7.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"organisation","param":null,"prefetchHints":4192,"slots":{"children":{"name":"risk-appetite","param":null,"prefetchHints":4192,"slots":{"children":{"name":"statementId","param":{"type":"d","key":"311f173d-6f69-5461-8bc1-6f74c2b45bee","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}}}},"staleTime":300,"buildId":"gv8cejwnGut7CwFqWGfBf"}
