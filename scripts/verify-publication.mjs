@@ -6,6 +6,8 @@ const root = resolve(process.argv[2] ?? "site");
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, canonical(item)])) : value;
 const publication = JSON.parse(readFileSync(join(root, "publication-manifest.json"), "utf8"));
+const liveUrl = publication.live_demo_url ?? null;
+if (liveUrl !== null && (typeof liveUrl !== "string" || !/^https:\/\/[a-z0-9]([-a-z0-9]*[a-z0-9])?\.[a-z0-9]([-a-z0-9]*[a-z0-9])?\.ts\.net\/$/.test(liveUrl))) throw new Error("Unapproved live URL");
 const snapshot = JSON.parse(readFileSync(join(root, "snapshot-manifest.json"), "utf8"));
 const deterministic = {...snapshot};
 delete deterministic.generated_at;
@@ -41,5 +43,6 @@ function scan(folder) {
 }
 scan(root);
 if (Object.keys(publication.files).length !== seen.size - 1 || seen.size < 30 || !seen.has("404.html") || !seen.has("index.html") || !seen.has("snapshot-manifest.json")) throw new Error("Publication file set is incomplete");
-if (!readFileSync(join(root, "index.html"), "utf8").includes("Live demo unavailable")) throw new Error("Live entry must remain unavailable");
+const home = readFileSync(join(root, "index.html"), "utf8");
+if (liveUrl ? !home.includes(`href="${liveUrl}"`) || !home.includes("Open Live Demo") : !home.includes("Live demo unavailable")) throw new Error("Live entry does not match publication attestation");
 console.log(`Verified ${seen.size} public files from ${publication.source_commit}`);
