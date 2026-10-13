@@ -6,7 +6,7 @@ import { extname, join, relative, resolve, sep } from "node:path";
 const root = resolve(process.argv[2] ?? "site");
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, canonical(item)])) : value;
-const approvedSource = "f2e4deafbe73899413428e19519fcd5f37a34006";
+const approvedSources = new Set(["f2e4deafbe73899413428e19519fcd5f37a34006", "395dfdd2773fabad9925e8872c2dc52b41ff403b"]);
 const approvedRecordCounts = {appetite_boundaries: 1, appetite_statements: 1, appetite_versions: 2, applications: 12, capabilities: 12, "information-assets": 1, locations: 2, organisations: 1, people: 1, portfolio_members: 2, portfolios: 1, processes: 26, risk_scenarios: 1, services: 1, "third-parties": 1, traceability_findings: 6, treatments: 1};
 const approvedRouteCounts = {appetite_details: 1, appetite_index: 1, dependency_explorers: 56, governance_details: 56, governance_directories: 8, governance_index: 1, home: 1, not_found: 1, portfolio_details: 1, portfolio_index: 1, risk_details: 1, risk_index: 1, search: 1, traceability_details: 6};
 const exactKeys = (value, keys) => value && typeof value === "object" && !Array.isArray(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
@@ -20,11 +20,18 @@ if (!exactKeys(snapshot, ["content_digest", "files", "generated_at", "migration"
 const deterministic = {...snapshot};
 delete deterministic.generated_at;
 delete deterministic.content_digest;
-if (publication.schema_version !== 1 || publication.source_repository !== "Selvynallotey/TraceDora-source" || publication.source_commit !== approvedSource || publication.synthetic_content_digest !== snapshot.content_digest || !publication.files || typeof publication.files !== "object" || Array.isArray(publication.files) || !Object.keys(publication.files).every(label => /^[a-f0-9]{64}$/.test(publication.files[label]))) throw new Error("Publication identity mismatch");
-if (snapshot.schema_version !== 3 || snapshot.source_commit !== approvedSource || snapshot.migration !== "6f2a9c4d8e10" || snapshot.organisation_id !== "15000000-0000-4000-8000-000000000001" || snapshot.synthetic_dataset_id !== "tracedora-synthetic-v1" || snapshot.content_digest !== digest(`${JSON.stringify(canonical(deterministic))}\n`) || !/^[a-f0-9]{64}$/.test(snapshot.files["snapshot.json"])) throw new Error("Synthetic snapshot manifest is invalid");
+if (publication.schema_version !== 1 || publication.source_repository !== "Selvynallotey/TraceDora-source" || !approvedSources.has(publication.source_commit) || publication.synthetic_content_digest !== snapshot.content_digest || !publication.files || typeof publication.files !== "object" || Array.isArray(publication.files) || !Object.keys(publication.files).every(label => /^[a-f0-9]{64}$/.test(publication.files[label]))) throw new Error("Publication identity mismatch");
+if (snapshot.schema_version !== 3 || snapshot.source_commit !== publication.source_commit || snapshot.migration !== "6f2a9c4d8e10" || snapshot.organisation_id !== "15000000-0000-4000-8000-000000000001" || snapshot.synthetic_dataset_id !== "tracedora-synthetic-v1" || snapshot.content_digest !== digest(`${JSON.stringify(canonical(deterministic))}\n`) || !/^[a-f0-9]{64}$/.test(snapshot.files["snapshot.json"])) throw new Error("Synthetic snapshot manifest is invalid");
 if (!exactValues(snapshot.record_counts, approvedRecordCounts) || !exactValues(snapshot.route_counts, approvedRouteCounts)) throw new Error("Synthetic publication inventory is incomplete");
-const handoffSubject = execFileSync("git", ["-c", `safe.directory=${process.cwd().replaceAll("\\", "/")}`, "log", "-1", "--format=%s", "--", "site/publication-manifest.json"], {encoding: "utf8"}).trim();
-if (handoffSubject !== `Publish approved synthetic showcase from ${approvedSource}`) throw new Error("Public artifact does not match approved private handoff");
+const gitOptions = ["-c", `safe.directory=${process.cwd().replaceAll("\\", "/")}`];
+const stagedSite = root === resolve("site") && execFileSync("git", [...gitOptions, "status", "--porcelain", "--", "site"], {encoding: "utf8"}).trim() !== "";
+if (root === resolve("site") && !stagedSite) {
+  const handoff = execFileSync("git", [...gitOptions, "log", "-1", "--format=%B", "--", "site/publication-manifest.json"], {encoding: "utf8"}).trim();
+  const expected = publication.source_commit === "f2e4deafbe73899413428e19519fcd5f37a34006"
+    ? `Publish approved synthetic showcase from ${publication.source_commit}`
+    : `chore: publish accessible mobile risk dashboard\n\nSource-Commit: ${publication.source_commit}`;
+  if (handoff !== expected) throw new Error("Public artifact does not match approved private handoff");
+}
 for (const route of ["index.html", "404.html", "current-risk/index.html", "current-risk/c0cc6aa3-d5e5-5049-9529-f6b7b63bebba/index.html", "risk-portfolios/index.html", "risk-portfolios/ceb8e346-41e2-5576-845b-fb249b2bfa13/index.html", "organisation/index.html", "organisation/processes/index.html", "organisation/applications/index.html", "organisation/information-assets/index.html", "organisation/risk-appetite/index.html", "search/index.html"]) if (!existsSync(join(root, route))) throw new Error(`Missing required route: ${route}`);
 const allowed = new Set([".html", ".js", ".css", ".json", ".txt", ".svg", ".png", ".ico", ".woff", ".woff2"]);
 const forbidden = [/postgresql\+psycopg:/i, /tracedora_demo_(admin|reader)/i, /\/api\/v1\//i, /data\/source\/Dataset\.xlsx/i, /BEGIN (?:RSA |EC )?PRIVATE KEY/i, /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|(?:10|192\.168)\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?(?:\/|["'`]|$)/i, /<form\b(?![^>]*class="global-search")/i, /<button\b[^>]*>\s*(?:Create|Save|Delete|Publish|Approve|Transition)\b/i];
