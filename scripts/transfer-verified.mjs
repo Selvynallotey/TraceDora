@@ -8,7 +8,7 @@ import { files, sameBytes } from "./transfer-integrity.mjs";
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const site = join(repo, "site");
 const candidate = resolve(process.argv[2] ?? "");
-const source = "ac1d2447ae66200c425a0f6ba182fd2044f79fd6";
+const source = "39954d2052c568ee64f1747a0a3ac1f38be5bec0";
 const safeGit = ["-c", `safe.directory=${repo.replaceAll("\\", "/")}`];
 const git = args => execFileSync("git", [...safeGit, ...args], {cwd: repo, encoding: "utf8"}).trim();
 const verify = root => execFileSync(process.execPath, [join(repo, "scripts", "verify-publication.mjs"), root], {cwd: repo, encoding: "utf8"}).trim();
