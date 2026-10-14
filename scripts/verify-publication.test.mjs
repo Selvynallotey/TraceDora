@@ -15,10 +15,10 @@ const read = (root, name) => JSON.parse(readFileSync(join(root, name), "utf8"));
 const write = (root, name, value) => writeFileSync(join(root, name), JSON.stringify(value) + "\n");
 const run = root => spawnSync(process.execPath, [verifier, root], {cwd: repo, encoding: "utf8"});
 
-function fixture() {
+function fixture(source = approved) {
   const parent = mkdtempSync(join(tmpdir(), "tracedora-public-verify-"));
   const root = join(parent, "site");
-  cpSync(approved, root, {recursive: true});
+  cpSync(source, root, {recursive: true});
   return {parent, root};
 }
 
@@ -34,9 +34,9 @@ function rehash(root, label) {
   write(root, "publication-manifest.json", publication);
 }
 
-function rejected(name, change, reason) {
+function rejected(name, change, reason, source = approved) {
   test(name, () => {
-    const {parent, root} = fixture();
+    const {parent, root} = fixture(source);
     try {
       change(root);
       const result = run(root);
@@ -54,6 +54,27 @@ test("the handed-off schema-3 artifact passes every public gate", () => {
   const publication = read(approved, "publication-manifest.json");
   assert.equal(result.stdout.trim(), `Verified ${Object.keys(publication.files).length + 1} public files from ${publication.source_commit}`);
 });
+
+const schema4Artifact = process.env.TRACEDORA_SCHEMA4_FIXTURE;
+if (schema4Artifact) {
+  test("the reviewed schema-4 assessment artifact passes every public gate", () => {
+    const result = run(schema4Artifact);
+    assert.equal(result.status, 0, result.stderr);
+  });
+  rejected("schema 4 rejects a missing assessment route", root => {
+    rmSync(join(root, "organisation", "assessments", "index.html"));
+  }, /Missing assessment route/, schema4Artifact);
+  rejected("schema 4 rejects an unsupported assessment conclusion", root => {
+    const label = "organisation/assessments/21228148-4c3e-5459-b2a6-a7b7aa8680e1/index.html";
+    writeFileSync(join(root, label), readFileSync(join(root, label), "utf8") + "Assessment certified");
+    rehash(root, label);
+  }, /Unapproved analytical outcome/, schema4Artifact);
+  rejected("schema 4 rejects an assessment mutation form", root => {
+    const label = "organisation/assessments/21228148-4c3e-5459-b2a6-a7b7aa8680e1/index.html";
+    writeFileSync(join(root, label), readFileSync(join(root, label), "utf8") + "<form><input></form>");
+    rehash(root, label);
+  }, /Forbidden content/, schema4Artifact);
+}
 
 rejected("rejects a schema mismatch", root => {
   const value = read(root, "snapshot-manifest.json");
