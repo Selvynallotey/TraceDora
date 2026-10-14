@@ -51,7 +51,8 @@ function rejected(name, change, reason) {
 test("the handed-off schema-3 artifact passes every public gate", () => {
   const result = run(approved);
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), `Verified 700 public files from ${read(approved, "publication-manifest.json").source_commit}`);
+  const publication = read(approved, "publication-manifest.json");
+  assert.equal(result.stdout.trim(), `Verified ${Object.keys(publication.files).length + 1} public files from ${publication.source_commit}`);
 });
 
 rejected("rejects a schema mismatch", root => {

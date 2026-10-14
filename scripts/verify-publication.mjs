@@ -6,9 +6,13 @@ import { extname, join, relative, resolve, sep } from "node:path";
 const root = resolve(process.argv[2] ?? "site");
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, canonical(item)])) : value;
-const approvedSources = new Set(["f2e4deafbe73899413428e19519fcd5f37a34006", "395dfdd2773fabad9925e8872c2dc52b41ff403b"]);
+const DATA001_SOURCE = "af39ac7ec327d407c3b5625f98a9817e7e192bd5";
+const approvedSources = new Set(["f2e4deafbe73899413428e19519fcd5f37a34006", "395dfdd2773fabad9925e8872c2dc52b41ff403b", DATA001_SOURCE]);
 const approvedRecordCounts = {appetite_boundaries: 1, appetite_statements: 1, appetite_versions: 2, applications: 12, capabilities: 12, "information-assets": 1, locations: 2, organisations: 1, people: 1, portfolio_members: 2, portfolios: 1, processes: 26, risk_scenarios: 1, services: 1, "third-parties": 1, traceability_findings: 6, treatments: 1};
 const approvedRouteCounts = {appetite_details: 1, appetite_index: 1, dependency_explorers: 56, governance_details: 56, governance_directories: 8, governance_index: 1, home: 1, not_found: 1, portfolio_details: 1, portfolio_index: 1, risk_details: 1, risk_index: 1, search: 1, traceability_details: 6};
+const data001RecordCounts = {...approvedRecordCounts, portfolio_members: 9, risk_scenarios: 8, treatments: 5};
+const data001RouteCounts = {...approvedRouteCounts, risk_details: 8};
+const data001RiskIds = ["26151453-1324-561b-bca6-1ac9f926dafd", "51ca85d0-dbdb-5b72-a247-b655f1fe4228", "789c1644-a327-5e0c-8859-2aa9889e3bad", "7a459b6e-0080-533f-a296-78b07e45f50b", "8d9b1fcb-e61d-5752-b5f6-09862bf60cef", "bb37e9c9-407b-56fc-86fd-4dbb1bbce4bb", "c0cc6aa3-d5e5-5049-9529-f6b7b63bebba", "cd4c73bc-b704-5a31-b3eb-18771fefdbd2"];
 const exactKeys = (value, keys) => value && typeof value === "object" && !Array.isArray(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
 const exactValues = (value, approved) => exactKeys(value, Object.keys(approved)) && Object.entries(approved).every(([key, expected]) => value[key] === expected);
 const publication = JSON.parse(readFileSync(join(root, "publication-manifest.json"), "utf8"));
@@ -22,17 +26,20 @@ delete deterministic.generated_at;
 delete deterministic.content_digest;
 if (publication.schema_version !== 1 || publication.source_repository !== "Selvynallotey/TraceDora-source" || !approvedSources.has(publication.source_commit) || publication.synthetic_content_digest !== snapshot.content_digest || !publication.files || typeof publication.files !== "object" || Array.isArray(publication.files) || !Object.keys(publication.files).every(label => /^[a-f0-9]{64}$/.test(publication.files[label]))) throw new Error("Publication identity mismatch");
 if (snapshot.schema_version !== 3 || snapshot.source_commit !== publication.source_commit || snapshot.migration !== "6f2a9c4d8e10" || snapshot.organisation_id !== "15000000-0000-4000-8000-000000000001" || snapshot.synthetic_dataset_id !== "tracedora-synthetic-v1" || snapshot.content_digest !== digest(`${JSON.stringify(canonical(deterministic))}\n`) || !/^[a-f0-9]{64}$/.test(snapshot.files["snapshot.json"])) throw new Error("Synthetic snapshot manifest is invalid");
-if (!exactValues(snapshot.record_counts, approvedRecordCounts) || !exactValues(snapshot.route_counts, approvedRouteCounts)) throw new Error("Synthetic publication inventory is incomplete");
+if (!exactValues(snapshot.record_counts, publication.source_commit === DATA001_SOURCE ? data001RecordCounts : approvedRecordCounts) || !exactValues(snapshot.route_counts, publication.source_commit === DATA001_SOURCE ? data001RouteCounts : approvedRouteCounts)) throw new Error("Synthetic publication inventory is incomplete");
 const gitOptions = ["-c", `safe.directory=${process.cwd().replaceAll("\\", "/")}`];
 const stagedSite = root === resolve("site") && execFileSync("git", [...gitOptions, "status", "--porcelain", "--", "site"], {encoding: "utf8"}).trim() !== "";
 if (root === resolve("site") && !stagedSite) {
   const handoff = execFileSync("git", [...gitOptions, "log", "-1", "--format=%B", "--", "site/publication-manifest.json"], {encoding: "utf8"}).trim();
   const expected = publication.source_commit === "f2e4deafbe73899413428e19519fcd5f37a34006"
     ? `Publish approved synthetic showcase from ${publication.source_commit}`
-    : `chore: publish accessible mobile risk dashboard\n\nSource-Commit: ${publication.source_commit}`;
+    : publication.source_commit === DATA001_SOURCE
+      ? `chore: publish enriched synthetic risk showcase\n\nSource-Commit: ${publication.source_commit}`
+      : `chore: publish accessible mobile risk dashboard\n\nSource-Commit: ${publication.source_commit}`;
   if (handoff !== expected) throw new Error("Public artifact does not match approved private handoff");
 }
 for (const route of ["index.html", "404.html", "current-risk/index.html", "current-risk/c0cc6aa3-d5e5-5049-9529-f6b7b63bebba/index.html", "risk-portfolios/index.html", "risk-portfolios/ceb8e346-41e2-5576-845b-fb249b2bfa13/index.html", "organisation/index.html", "organisation/processes/index.html", "organisation/applications/index.html", "organisation/information-assets/index.html", "organisation/risk-appetite/index.html", "search/index.html"]) if (!existsSync(join(root, route))) throw new Error(`Missing required route: ${route}`);
+if (publication.source_commit === DATA001_SOURCE) for (const id of data001RiskIds) if (!existsSync(join(root, "current-risk", id, "index.html"))) throw new Error(`Missing DATA-001 risk route: ${id}`);
 const allowed = new Set([".html", ".js", ".css", ".json", ".txt", ".svg", ".png", ".ico", ".woff", ".woff2"]);
 const forbidden = [/postgresql\+psycopg:/i, /tracedora_demo_(admin|reader)/i, /\/api\/v1\//i, /data\/source\/Dataset\.xlsx/i, /BEGIN (?:RSA |EC )?PRIVATE KEY/i, /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|(?:10|192\.168)\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?(?:\/|["'`]|$)/i, /<form\b(?![^>]*class="global-search")/i, /<button\b[^>]*>\s*(?:Create|Save|Delete|Publish|Approve|Transition)\b/i];
 const unapprovedAnalytical = /Supported estimate available|Supported analytical result recorded|Supported subset \d+|(?:EUR|USD|GBP)\s+\d+(?:[.,]\d+)?|[€£]\s*\d/i;
