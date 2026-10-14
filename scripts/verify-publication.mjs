@@ -6,7 +6,7 @@ import { extname, join, relative, resolve, sep } from "node:path";
 const root = resolve(process.argv[2] ?? "site");
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => [key, canonical(item)])) : value;
-const DATA001_SOURCE = "af39ac7ec327d407c3b5625f98a9817e7e192bd5";
+const DATA001_SOURCE = "ac1d2447ae66200c425a0f6ba182fd2044f79fd6";
 const approvedSources = new Set(["f2e4deafbe73899413428e19519fcd5f37a34006", "395dfdd2773fabad9925e8872c2dc52b41ff403b", DATA001_SOURCE]);
 const approvedRecordCounts = {appetite_boundaries: 1, appetite_statements: 1, appetite_versions: 2, applications: 12, capabilities: 12, "information-assets": 1, locations: 2, organisations: 1, people: 1, portfolio_members: 2, portfolios: 1, processes: 26, risk_scenarios: 1, services: 1, "third-parties": 1, traceability_findings: 6, treatments: 1};
 const approvedRouteCounts = {appetite_details: 1, appetite_index: 1, dependency_explorers: 56, governance_details: 56, governance_directories: 8, governance_index: 1, home: 1, not_found: 1, portfolio_details: 1, portfolio_index: 1, risk_details: 1, risk_index: 1, search: 1, traceability_details: 6};
