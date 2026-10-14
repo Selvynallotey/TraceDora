@@ -104,6 +104,14 @@ rejected("rejects missing required routes", root => {
   rmSync(join(root, "current-risk", "index.html"));
 }, /Missing required route/);
 
+rejected("rejects a missing approved DATA-001 risk story", root => {
+  rmSync(join(root, "current-risk", "7a459b6e-0080-533f-a296-78b07e45f50b", "index.html"));
+}, /Missing DATA-001 risk route/);
+
+rejected("rejects an unaudited extra file", root => {
+  writeFileSync(join(root, "extra.txt"), "unaudited public data");
+}, /Hash mismatch: extra.txt/);
+
 rejected("rejects broken internal links", root => {
   writeFileSync(join(root, "index.html"), readFileSync(join(root, "index.html"), "utf8") + '<a href="/TraceDora/missing-risk/">Broken</a>');
   rehash(root, "index.html");

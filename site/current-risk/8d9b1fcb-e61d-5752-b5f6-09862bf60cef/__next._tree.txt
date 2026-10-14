@@ -1,0 +1,2 @@
+:HL["/TraceDora/_next/static/chunks/0xy9l1cr8ny6-.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"current-risk","param":null,"prefetchHints":4192,"slots":{"children":{"name":"scenarioId","param":{"type":"d","key":"8d9b1fcb-e61d-5752-b5f6-09862bf60cef","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}},"staleTime":300,"buildId":"rNA_08bNbYaInxz6zktAY"}
